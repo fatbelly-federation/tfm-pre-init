@@ -17,12 +17,16 @@ provider aws {
 resource "aws_s3_bucket" "terraform_log_bucket" {
   bucket = "${var.s3_log_bucket}"
   acl = "log-delivery-write"
+
+  tags = "${var.tags}"
 }
 
 # bucket for tfstate
 resource "aws_s3_bucket" "terraform_tf_bucket" {
   bucket = "${var.s3_state_bucket}"
   acl = "private"
+
+  tags = "${var.tags}"
 
   versioning {
     enabled = true
@@ -65,6 +69,8 @@ resource "aws_dynamodb_table" "terraform_state_lock" {
     name = "LockID"
     type = "S"
   }
+
+  tags = "${var.tags}"
 }
 
 

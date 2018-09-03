@@ -32,3 +32,12 @@ variable "backup_state_region" {
 variable "s3_replica_log_bucket" {
   description = "bucket for logging activity for the backup bucket"
 }
+
+variable "tags" {
+  type = "map"
+  description = "map(list) of tags to add to everything we create with this module"
+  default = {
+    "terraform" = "true"
+  }
+}
+

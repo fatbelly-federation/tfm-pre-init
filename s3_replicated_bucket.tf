@@ -90,11 +90,15 @@ resource "aws_s3_bucket" "destination" {
     target_prefix = "${var.terraform_state_log_prefix}/"
   }
 
+  tags = "${var.tags}"
+
 }
 
 resource "aws_s3_bucket" "destination_log_bucket" {
   bucket    = "${var.s3_replica_log_bucket}"
   provider  = "aws.replica_provider"
   acl       = "log-delivery-write"
+
+  tags = "${var.tags}"
 }
 
