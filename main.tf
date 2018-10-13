@@ -13,12 +13,59 @@ provider aws {
   region = "${var.backup_state_region}"
 }
 
+# aws account id of the caller
+# ref: https://www.terraform.io/docs/providers/aws/d/caller_identity.html
+data "aws_caller_identity" "current" {}
+
 # bucket for logging tfstate activity
 resource "aws_s3_bucket" "terraform_log_bucket" {
   bucket = "${var.s3_log_bucket}"
   acl = "log-delivery-write"
 
   tags = "${var.tags}"
+
+  # enable server-side encryption
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        kms_master_key_id = "${aws_kms_key.bucket_key.arn}"
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
+
+  # enforce ssl only access to the bucket
+  # ref: https://docs.aws.amazon.com/config/latest/developerguide/s3-bucket-ssl-requests-only.html
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "${data.aws_caller_identity.current.account_id}"
+        ]
+      },
+      "Action": "s3:Get*",
+      "Resource": "arn:aws:s3:::${var.s3_log_bucket}/*"
+    },
+    {
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "*",
+      "Resource": "arn:aws:s3:::${var.s3_log_bucket}/*",
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "false"
+        }
+      }
+    }
+  ]
+}
+POLICY
+
+
 }
 
 # bucket for tfstate
@@ -36,6 +83,48 @@ resource "aws_s3_bucket" "terraform_tf_bucket" {
     target_bucket = "${aws_s3_bucket.terraform_log_bucket.id}"
     target_prefix = "${var.terraform_state_log_prefix}/"
   }
+
+  # enable server-side encryption
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        kms_master_key_id = "${aws_kms_key.bucket_key.arn}"
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
+
+  # enforce ssl only access to the bucket
+  # ref: https://docs.aws.amazon.com/config/latest/developerguide/s3-bucket-ssl-requests-only.html
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "${data.aws_caller_identity.current.account_id}"
+        ]
+      },
+      "Action": "s3:Get*",
+      "Resource": "arn:aws:s3:::${var.s3_state_bucket}/*"
+    },
+    {
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "*",
+      "Resource": "arn:aws:s3:::${var.s3_state_bucket}/*",
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "false"
+        }
+      }
+    }
+  ]
+}
+POLICY
+
 
   replication_configuration {
     role = "${aws_iam_role.replication.arn}"
